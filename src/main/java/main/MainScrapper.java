@@ -15,7 +15,15 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class MainScrapper {
-    public static void main( String[] args ) {
+
+    public static final String ID_KEY = "documento";
+    public static final String PASS_KEY = "password";
+    public static final String COOKIE = "Cookie";
+
+    public static void main( String[] args ) throws IOException {
+
+        PropertyService credentials = new PropertyService("credentials.properties");
+        credentials.getValue( ID_KEY );
 
         OkHttpClient client = new OkHttpClient();
 
@@ -25,24 +33,18 @@ public class MainScrapper {
                 .build();
 
         try (Response response = client.newCall( getCookie ).execute()) {
+            System.out.println( "Successfully logged in" );
             String cookie = response.header( "Set-Cookie" );
             String sessionString = cookie.split( ";" )[0];
 
-            String sessionName = sessionString.split( "=" )[0];
-            String sessionId = sessionString.split( "=" )[1];
-
-            System.out.println( sessionString );
-            System.out.println( sessionName );
-            System.out.println( sessionId );
-
             RequestBody loginRequestPayload = new MultipartBody.Builder()
                     .setType( MultipartBody.FORM )
-                    .addFormDataPart( "documento", "3968344" )
-                    .addFormDataPart( "password", "Lrd696Dac355" )
+                    .addFormDataPart( ID_KEY, credentials.getValue( ID_KEY ) )
+                    .addFormDataPart( PASS_KEY, credentials.getValue( PASS_KEY ) )
                     .build();
 
             Request login = new Request.Builder()
-                    .addHeader( "Cookie", sessionString )
+                    .addHeader( COOKIE, sessionString )
                     .url( "https://www.cadiemfondos.com.py/clientes/verificaLogin" )
                     .post( loginRequestPayload )
                     .build();
@@ -59,7 +61,7 @@ public class MainScrapper {
                     .build();
 
             Request selectAccount = new Request.Builder()
-                    .addHeader( "Cookie", sessionString )
+                    .addHeader( COOKIE, sessionString )
                     .url( "https://www.cadiemfondos.com.py/clientes/sessionar_cuenta" )
                     .post( selectAccountPayload )
                     .build();
@@ -74,7 +76,7 @@ public class MainScrapper {
             httpBuilder.addQueryParameter( "rangoFecha", "01/08/2000 - 13/09/2019" );
 
             Request getReport = new Request.Builder()
-                    .addHeader( "Cookie", sessionString )
+                    .addHeader( COOKIE, sessionString )
                     .url( httpBuilder.build() )
                     .method( "get", null )
                     .build();
