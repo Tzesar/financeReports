@@ -46,19 +46,8 @@ public class MainScrapper {
             throw new RuntimeException( "Can't select account: [1903], fund: [1]" );
         }
 
-        String getReportBaseUrl = "https://www.cadiemfondos.com.py/clientes/generarPDF";
-        HttpUrl.Builder httpBuilder = HttpUrl.parse( getReportBaseUrl ).newBuilder();
-
-        httpBuilder.addQueryParameter( "rangoFecha", "01/08/2000 - 13/09/2019" );
-
-        Request getReport = new Request.Builder()
-                .addHeader( COOKIE, sessionString )
-                .url( httpBuilder.build() )
-                .method( "GET", null )
-                .build();
-
-        Response response4 = client.newCall( getReport ).execute();
-        if (!response4.isSuccessful()) {
+        Response response4 = getReportResponse( client, sessionString );
+        if ( !response4.isSuccessful() ) {
             throw new IOException( "Unexpected code " + response4 );
         }
 
@@ -85,6 +74,21 @@ public class MainScrapper {
     }
 
     @NotNull
+    private static Response getReportResponse( OkHttpClient client, String sessionString ) throws IOException {
+        String getReportBaseUrl = "https://www.cadiemfondos.com.py/clientes/generarPDF";
+        HttpUrl.Builder httpBuilder = HttpUrl.parse( getReportBaseUrl ).newBuilder();
+
+        httpBuilder.addQueryParameter( "rangoFecha", "01/08/2000 - 13/09/2019" );
+
+        Request getReport = new Request.Builder()
+                .addHeader( COOKIE, sessionString )
+                .url( httpBuilder.build() )
+                .method( "GET", null )
+                .build();
+
+        return client.newCall( getReport ).execute();
+    }
+
     private static boolean selectAccount( OkHttpClient client, String sessionString, String accountId, String fundId ) throws IOException {
         RequestBody accountSelectionPayload = new MultipartBody.Builder()
                 .setType( MultipartBody.FORM )
@@ -104,7 +108,6 @@ public class MainScrapper {
         return accountSelectionResponse.isSuccessful();
     }
 
-    @NotNull
     private static boolean login( OkHttpClient client, String sessionString, String userId, String password ) throws IOException {
 
 
