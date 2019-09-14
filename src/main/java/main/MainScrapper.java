@@ -1,5 +1,6 @@
 package main;
 
+import okhttp3.HttpUrl;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -67,9 +68,14 @@ public class MainScrapper {
 
             System.out.println( response3.body().string() );
 
+            String getReportBaseUrl = "https://www.cadiemfondos.com.py/clientes/generarPDF";
+            HttpUrl.Builder httpBuilder = HttpUrl.parse(getReportBaseUrl).newBuilder();
+
+            httpBuilder.addQueryParameter( "rangoFecha", "01/08/2000 - 13/09/2019" );
+
             Request getReport = new Request.Builder()
                     .addHeader( "Cookie", sessionString )
-                    .url( "https://www.cadiemfondos.com.py/clientes/generarPDF/?rangoFecha=01/08/2000%20-%2013/09/2019" )
+                    .url( httpBuilder.build() )
                     .method( "get", null )
                     .build();
 
@@ -97,8 +103,6 @@ public class MainScrapper {
             FileOutputStream fos = new FileOutputStream( file );
             fos.write( baf.toByteArray() );
             fos.close();
-
-//            System.out.println( response4.body().string() );
 
         } catch (IOException e) {
             e.printStackTrace();
