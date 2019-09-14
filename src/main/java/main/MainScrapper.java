@@ -7,6 +7,8 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.apache.http.util.ByteArrayBuffer;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -21,54 +23,28 @@ public class MainScrapper {
     public static final String COOKIE = "Cookie";
 
     public static void main( String[] args ) throws IOException {
-
-        PropertyService credentials = new PropertyService( "credentials.properties" );
-        credentials.getValue( ID_KEY );
-
         OkHttpClient client = new OkHttpClient();
+        PropertyService credentials = new PropertyService( "credentials.properties" );
 
-        Request getCookie = new Request.Builder()
-                .url( "https://www.cadiemfondos.com.py/clientes/iniciar" )
-                .method( "Post", null )
-                .build();
+        String cookie = getCookie( client );
+        String sessionString;
+        if ( cookie != null ) {
+            sessionString = cookie.split( ";" )[0];
+        } else {
+            throw new RuntimeException( "Can't retrieve unsigned cookie" );
+        }
 
-        Response response = client.newCall( getCookie ).execute();
-        System.out.println( "Successfully logged in" );
-        String cookie = response.header( "Set-Cookie" );
-        String sessionString = cookie.split( ";" )[0];
+        if ( login( client, sessionString, credentials.getValue( ID_KEY ), credentials.getValue( PASS_KEY ) ) ) {
+            System.out.println( "Successfully logged in" );
+        } else {
+            throw new RuntimeException( "Can't log in as user:" );
+        }
 
-        RequestBody loginRequestPayload = new MultipartBody.Builder()
-                .setType( MultipartBody.FORM )
-                .addFormDataPart( ID_KEY, credentials.getValue( ID_KEY ) )
-                .addFormDataPart( PASS_KEY, credentials.getValue( PASS_KEY ) )
-                .build();
-
-        Request login = new Request.Builder()
-                .addHeader( COOKIE, sessionString )
-                .url( "https://www.cadiemfondos.com.py/clientes/verificaLogin" )
-                .post( loginRequestPayload )
-                .build();
-
-        Response response2 = client.newCall( login ).execute();
-
-        System.out.println( response2.body().string() );
-
-        RequestBody selectAccountPayload = new MultipartBody.Builder()
-                .setType( MultipartBody.FORM )
-                .addFormDataPart( "id_cuenta", "1903" )
-                .addFormDataPart( "id_fondo", "1" )
-                .addFormDataPart( "participe", "1" )
-                .build();
-
-        Request selectAccount = new Request.Builder()
-                .addHeader( COOKIE, sessionString )
-                .url( "https://www.cadiemfondos.com.py/clientes/sessionar_cuenta" )
-                .post( selectAccountPayload )
-                .build();
-
-        Response response3 = client.newCall( selectAccount ).execute();
-
-        System.out.println( response3.body().string() );
+        if ( selectAccount( client, sessionString, "1903", "1" ) ) {
+            System.out.println( "Successfully selected account: [1903], fund: [1]" );
+        } else {
+            throw new RuntimeException( "Can't select account: [1903], fund: [1]" );
+        }
 
         String getReportBaseUrl = "https://www.cadiemfondos.com.py/clientes/generarPDF";
         HttpUrl.Builder httpBuilder = HttpUrl.parse( getReportBaseUrl ).newBuilder();
@@ -78,12 +54,12 @@ public class MainScrapper {
         Request getReport = new Request.Builder()
                 .addHeader( COOKIE, sessionString )
                 .url( httpBuilder.build() )
-                .method( "get", null )
+                .method( "GET", null )
                 .build();
 
         Response response4 = client.newCall( getReport ).execute();
         if (!response4.isSuccessful()) {
-            throw new IOException( "Unexpected code " + response );
+            throw new IOException( "Unexpected code " + response4 );
         }
 
         File myDir = new File( "/home/augusto/IdeaProjects/finance-reports/src/test/output/" );
@@ -106,5 +82,62 @@ public class MainScrapper {
         fos.write( baf.toByteArray() );
         fos.close();
 
+    }
+
+    @NotNull
+    private static boolean selectAccount( OkHttpClient client, String sessionString, String accountId, String fundId ) throws IOException {
+        RequestBody accountSelectionPayload = new MultipartBody.Builder()
+                .setType( MultipartBody.FORM )
+                .addFormDataPart( "id_cuenta", accountId )
+                .addFormDataPart( "id_fondo", fundId )
+                .addFormDataPart( "participe", "1" )
+                .build();
+
+        Request accountSelectionRequest = new Request.Builder()
+                .addHeader( COOKIE, sessionString )
+                .url( "https://www.cadiemfondos.com.py/clientes/sessionar_cuenta" )
+                .method("POST", accountSelectionPayload )
+                .build();
+
+        Response accountSelectionResponse = client.newCall( accountSelectionRequest ).execute();
+
+        return accountSelectionResponse.isSuccessful();
+    }
+
+    @NotNull
+    private static boolean login( OkHttpClient client, String sessionString, String userId, String password ) throws IOException {
+
+
+        RequestBody loginRequestPayload = new MultipartBody.Builder()
+                .setType( MultipartBody.FORM )
+                .addFormDataPart( ID_KEY, userId )
+                .addFormDataPart( PASS_KEY, password )
+                .build();
+
+        Request login = new Request.Builder()
+                .addHeader( COOKIE, sessionString )
+                .url( "https://www.cadiemfondos.com.py/clientes/verificaLogin" )
+                .method("POST", loginRequestPayload )
+                .build();
+
+        Response loginResponse = client.newCall( login ).execute();
+
+        return loginResponse.isSuccessful();
+    }
+
+    @Nullable
+    private static String getCookie( OkHttpClient client ) throws IOException {
+        Request getCookie = new Request.Builder()
+                .url( "https://www.cadiemfondos.com.py/clientes/iniciar" )
+                .method( "GET", null )
+                .build();
+
+        Response response = client.newCall( getCookie ).execute();
+
+        if ( response.isSuccessful() ) {
+            return response.header( "Set-Cookie" );
+        } else {
+            return null;
+        }
     }
 }
