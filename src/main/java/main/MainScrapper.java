@@ -25,14 +25,15 @@ public class MainScrapper {
     public static final String PASS_KEY = "password";
     public static final String COOKIE = "Cookie";
 
-    private static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ENGLISH);
-    private static DateTimeFormatter printFormatter = DateTimeFormatter.ofPattern("dd_MM_yyyy", Locale.ENGLISH);
+    private static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ENGLISH);
+    private static DateTimeFormatter PRINT_FORMATTER = DateTimeFormatter.ofPattern("dd_MM_yyyy", Locale.ENGLISH);
 
     public static void main( String[] args ) throws IOException {
         OkHttpClient client = new OkHttpClient();
         PropertyService credentials = new PropertyService( "credentials.properties" );
 
-        LocalDate initialDate = LocalDate.parse("01/07/2019", formatter);
+        LocalDate seedDate = LocalDate.parse("01/07/2019", FORMATTER );
+        LocalDate today = LocalDate.now();
 
         String cookie = getCookie( client );
         String sessionString;
@@ -58,16 +59,20 @@ public class MainScrapper {
             throw new RuntimeException( exceptionMessage );
         }
 
-        LocalDate endDate = initialDate.plusMonths( 1L );
+        LocalDate beginDate = LocalDate.from( seedDate );
+        while ( beginDate.plusMonths( 1L ).isBefore( today ) ) {
+            LocalDate endDate = beginDate.plusMonths( 1L ).minusDays( 1L );
+            Response reportResponse = getReportResponse( client, sessionString, beginDate, endDate );
+            if (!reportResponse.isSuccessful()) {
+                throw new IOException( "Unexpected code " + reportResponse );
+            } else {
+                String successMessage = String.format( "Successfully retrieved report from range [%s - %s]", beginDate.format( FORMATTER ), endDate.format( FORMATTER ) );
+                System.out.println( successMessage );
+                String reportName = String.format( "report_from_[%s-%s].pdf", beginDate.format( PRINT_FORMATTER ), endDate.format( PRINT_FORMATTER ) );
+                writeReportFromResponse( reportResponse, reportName );
+            }
 
-        Response reportResponse = getReportResponse( client, sessionString, initialDate, endDate );
-        if ( !reportResponse.isSuccessful() ) {
-            throw new IOException( "Unexpected code " + reportResponse );
-        } else {
-            String successMessage = String.format( "Successfully retrieved report from range [%s - %s]", initialDate.format( formatter ), endDate.format( formatter ) );
-            System.out.println( successMessage );
-            String reportName = String.format( "report_from_[%s-%s].pdf", initialDate.format( printFormatter ), endDate.format( printFormatter ) );;
-            writeReportFromResponse( reportResponse, reportName );
+            beginDate = beginDate.plusMonths( 1L );
         }
     }
 
@@ -97,7 +102,7 @@ public class MainScrapper {
         String getReportBaseUrl = "https://www.cadiemfondos.com.py/clientes/generarPDF";
         HttpUrl.Builder httpBuilder = HttpUrl.parse( getReportBaseUrl ).newBuilder();
 
-        String dateRange = String.format( "%s - %s", reportStart.format( formatter ), reportEnd.format( formatter ) );
+        String dateRange = String.format( "%s - %s", reportStart.format( FORMATTER ), reportEnd.format( FORMATTER ) );
         httpBuilder.addQueryParameter( "rangoFecha", dateRange );
 
         Request getReport = new Request.Builder()
