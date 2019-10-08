@@ -15,6 +15,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 public class MainScrapper {
 
@@ -22,9 +25,13 @@ public class MainScrapper {
     public static final String PASS_KEY = "password";
     public static final String COOKIE = "Cookie";
 
+    private static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ENGLISH);
+
     public static void main( String[] args ) throws IOException {
         OkHttpClient client = new OkHttpClient();
         PropertyService credentials = new PropertyService( "credentials.properties" );
+
+        LocalDate initialDate = LocalDate.parse("01/08/2000", formatter);
 
         String cookie = getCookie( client );
         String sessionString;
@@ -46,21 +53,26 @@ public class MainScrapper {
             throw new RuntimeException( "Can't select account: [1903], fund: [1]" );
         }
 
-        Response response4 = getReportResponse( client, sessionString );
-        if ( !response4.isSuccessful() ) {
-            throw new IOException( "Unexpected code " + response4 );
-        }
+        LocalDate endDate = LocalDate.parse("13/09/2019", formatter);
 
+        Response reportResponse = getReportResponse( client, sessionString, initialDate, endDate );
+        if ( !reportResponse.isSuccessful() ) {
+            throw new IOException( "Unexpected code " + reportResponse );
+        } else {
+            writeReportFromResponse( reportResponse, "test.pdf" );
+        }
+    }
+
+    private static void writeReportFromResponse( Response reportResponse, String reportName ) throws IOException {
         File myDir = new File( "/home/augusto/IdeaProjects/finance-reports/src/test/output/" );
         myDir.mkdirs();
-        String fname = "test.pdf";
 
-        File file = new File( myDir, fname );
+        File file = new File( myDir, reportName );
         if (file.exists()) {
             file.delete();
         }
 
-        InputStream is = response4.body().byteStream();
+        InputStream is = reportResponse.body().byteStream();
         BufferedInputStream bis = new BufferedInputStream( is );
         ByteArrayBuffer baf = new ByteArrayBuffer( 50 );
         int current = 0;
@@ -70,15 +82,19 @@ public class MainScrapper {
         FileOutputStream fos = new FileOutputStream( file );
         fos.write( baf.toByteArray() );
         fos.close();
-
     }
 
     @NotNull
-    private static Response getReportResponse( OkHttpClient client, String sessionString ) throws IOException {
+    private static Response getReportResponse( OkHttpClient client, String sessionString, LocalDate reportStart, LocalDate reportEnd ) throws IOException {
         String getReportBaseUrl = "https://www.cadiemfondos.com.py/clientes/generarPDF";
         HttpUrl.Builder httpBuilder = HttpUrl.parse( getReportBaseUrl ).newBuilder();
 
-        httpBuilder.addQueryParameter( "rangoFecha", "01/08/2000 - 13/09/2019" );
+        StringBuilder dateRange = new StringBuilder( );
+        dateRange.append( reportStart.format( formatter ) )
+                .append( " - " )
+                .append( reportEnd.format( formatter ) );
+
+        httpBuilder.addQueryParameter( "rangoFecha", dateRange.toString() );
 
         Request getReport = new Request.Builder()
                 .addHeader( COOKIE, sessionString )
