@@ -23,12 +23,12 @@ import java.util.Map;
 
 public class MainScrapper {
 
-    public static final String ID_KEY = "documento";
-    public static final String PASS_KEY = "password";
-    public static final String COOKIE = "Cookie";
+    private static final String ID_KEY = "documento";
+    private static final String PASS_KEY = "password";
+    private static final String COOKIE = "Cookie";
 
-    private static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ENGLISH);
-    private static DateTimeFormatter PRINT_FORMATTER = DateTimeFormatter.ofPattern("dd_MM_yyyy", Locale.ENGLISH);
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ENGLISH);
+    private static final DateTimeFormatter PRINT_FORMATTER = DateTimeFormatter.ofPattern("dd_MM_yyyy", Locale.ENGLISH);
 
     public static void main( String[] args ) throws IOException {
         OkHttpClient client = new OkHttpClient();
