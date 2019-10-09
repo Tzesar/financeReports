@@ -103,9 +103,9 @@ public class MainScrapper {
         while (( current = bis.read() ) != -1) {
             baf.append( (byte) current );
         }
-        FileOutputStream fos = new FileOutputStream( file );
-        fos.write( baf.toByteArray() );
-        fos.close();
+        try (FileOutputStream fos = new FileOutputStream( file )) {
+            fos.write( baf.toByteArray() );
+        }
     }
 
     @NotNull
