@@ -17,7 +17,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 public class MainScrapper {
 
@@ -49,31 +51,40 @@ public class MainScrapper {
             throw new RuntimeException( "Can't log in as user:" );
         }
 
-        String accountId = "1903";
-        String fundId = "1";
-        if ( selectAccount( client, sessionString, accountId, fundId ) ) {
-            String successMessage = String.format( "Successfully selected account: [%s], fund: [%s]", accountId, fundId );
-            System.out.println( successMessage );
-        } else {
-            String exceptionMessage = String.format( "Can't select account: [%s], fund: [%s]", accountId, fundId );
-            throw new RuntimeException( exceptionMessage );
-        }
+        Map<String, String> accountNameMap = new HashMap<>(  );
+        accountNameMap.put( "1903", "DISP" );
+        accountNameMap.put( "495", "CREC" );
 
-        LocalDate beginDate = LocalDate.from( seedDate );
-        while ( beginDate.plusMonths( 1L ).isBefore( today ) ) {
-            LocalDate endDate = beginDate.plusMonths( 1L ).minusDays( 1L );
-            Response reportResponse = getReportResponse( client, sessionString, beginDate, endDate );
-            if (!reportResponse.isSuccessful()) {
-                throw new IOException( "Unexpected code " + reportResponse );
-            } else {
-                String successMessage = String.format( "Successfully retrieved report from range [%s - %s]", beginDate.format( FORMATTER ), endDate.format( FORMATTER ) );
+        Map<String, String> fundByAccountIdMap = new HashMap<>(  );
+        fundByAccountIdMap.put( "1903", "1" );
+        fundByAccountIdMap.put( "495", "2" );
+
+        for ( String accountId : accountNameMap.keySet() ) {
+            if (selectAccount( client, sessionString, accountId, fundByAccountIdMap.get( accountId ) )) {
+                String successMessage = String.format( "Successfully selected account: [%s], fund: [%s]", accountId, fundByAccountIdMap.get( accountId ) );
                 System.out.println( successMessage );
-                String reportName = String.format( "report_from_[%s-%s].pdf", beginDate.format( PRINT_FORMATTER ), endDate.format( PRINT_FORMATTER ) );
-                writeReportFromResponse( reportResponse, reportName );
+            } else {
+                String exceptionMessage = String.format( "Can't select account: [%s], fund: [%s]", accountId, fundByAccountIdMap.get( accountId ) );
+                throw new RuntimeException( exceptionMessage );
             }
 
-            beginDate = beginDate.plusMonths( 1L );
+            LocalDate beginDate = LocalDate.from( seedDate );
+            while (beginDate.plusMonths( 1L ).isBefore( today )) {
+                LocalDate endDate = beginDate.plusMonths( 1L ).minusDays( 1L );
+                Response reportResponse = getReportResponse( client, sessionString, beginDate, endDate );
+                if (!reportResponse.isSuccessful()) {
+                    throw new IOException( "Unexpected code " + reportResponse );
+                } else {
+                    String successMessage = String.format( "Successfully retrieved report from range [%s - %s]", beginDate.format( FORMATTER ), endDate.format( FORMATTER ) );
+                    System.out.println( successMessage );
+                    String reportName = String.format( "%s_report_from_[%s-%s].pdf", accountNameMap.get( accountId ), beginDate.format( PRINT_FORMATTER ), endDate.format( PRINT_FORMATTER ) );
+                    writeReportFromResponse( reportResponse, reportName );
+                }
+
+                beginDate = beginDate.plusMonths( 1L );
+            }
         }
+
     }
 
     private static void writeReportFromResponse( Response reportResponse, String reportName ) throws IOException {
